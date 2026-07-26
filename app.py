@@ -89,24 +89,20 @@ def login():
     start = time.time()
     try:
         row = query_user(username)
-        elapsed = time.time() - start
-        if elapsed > DB_TIMEOUT:
-            log_db.error('Timeout while querying table "users"')
-            raise TimeoutError()
-        if row and row[1] == password:
-            failed_attempts.pop(username, None)
-            return jsonify(ok=True, message=f"Bienvenido, {username}")
-        raise ValueError()
-    except (TimeoutError, ValueError):
-        log_auth.error("Error validating user token")
-        log_ctrl.warning(f"Login attempt failed for user: {username}")
-        failed_attempts[username] = failed_attempts.get(username, 0) + 1
-        if failed_attempts[username] >= 3:
-            return jsonify(error="Internal Server Error"), 500
-        return (
-            jsonify(error="Error: credenciales no validas. Intentelo nuevamente."),
-            401,
-        )
+    except sqlite3.OperationalError:
+        # FIX: error de BD -> 503, nunca "credenciales no validas"
+        log_db.error('Timeout while querying table "users"')
+        return jsonify(error="Servicio no disponible, intente más tarde."), 503
+
+    elapsed_ms = round((time.time() - start) * 1000)
+    log_auth.info(f"Login query completed in {elapsed_ms} ms")
+
+    if row and row[1] == password:
+        return jsonify(ok=True, message=f"Bienvenido, {username}")
+
+    log_ctrl.warning(f"Login attempt failed for user: {username}")
+    return jsonify(error="Usuario o contraseña incorrectos."), 401
+
 
 
 if __name__ == "__main__":
