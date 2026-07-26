@@ -88,7 +88,7 @@ def login():
     password = request.form.get("password", "")
     start = time.time()
     try:
-        row = query_user_extended(username)
+        row = query_user(username)
         elapsed = time.time() - start
         if elapsed > DB_TIMEOUT:
             log_db.error('Timeout while querying table "users"')
